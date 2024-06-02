@@ -17,28 +17,28 @@ export const AntWidgetDialog = createDialogComponent({
     keyboard: false
   },
   defaultCannelButtonRender: {
-    action: 'cannel',
-    type: 'default',
     text: '取消',
     size: 'mini',
-    componentProps: null,
-    render: null,
-    click: (dialogStore) => {
-      dialogStore.visible = false
-      dialogStore.loading = false
-      // this.$emit('cannel')
+    events: (dialogStore) => {
+      return {
+        onClick: function() {
+          dialogStore.visible = false
+          dialogStore.loading = false
+          dialogStore.vm.$emit('cannel')
+        }
+      }
     }
   },
   defaultSubmitButtonRender: {
-    action: 'submit',
     type: 'primary',
     text: '提交',
     size: 'mini',
-    componentProps: null,
-    render: null,
-    click: () => {
-      console.log('提交;ddsfsdf')
-      // this.$emit('submit', dialogStore)
+    events: (dialogStore) => {
+      return {
+        onClick: function() {
+          dialogStore.vm.$emit('submit')
+        }
+      }
     }
   }
 })

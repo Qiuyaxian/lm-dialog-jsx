@@ -1,6 +1,9 @@
 <script lang="jsx">
-import { reactive, watch, defineComponent, onMounted, onUnmounted, ref } from "vue"
-
+import { defineComponent, getCurrentInstance, ref, reactive, computed, watch, onMounted, onUnmounted, isVNode } from "vue"
+import merge from 'lodash/merge'
+import isFunction from 'lodash/isFunction'
+import isObject from 'lodash/isObject'
+import isArray from 'lodash/isArray'
 export default defineComponent({
     name: "widget-dialog",
     props: {
@@ -12,25 +15,37 @@ export default defineComponent({
         type: String,
         default: '弹窗'
       },
-      // 按钮功能
-      buttons: {
-        type: Array,
-        default: null
-      },
       // 转发dialog配置
       widgetDialogProps: {
-        type: Object,
+        type: [Object, Function],
         default: () => {}
+      },
+      // 转发dialog配置
+      widgetDialogAttrs: {
+        type: [Object, Function],
+        default: () => {}
+      },
+      // 转发dialog配置
+      widgetDialogEvents: {
+        type: [Object, Function],
+        default: () => ({})
       },
       // 自定义渲染器
       widgetDialogRender: {
-        type: [Function, Object],
-        required: true,
+        type: [Object, Function],
         default: null 
       },
-      // 传递参数
+      // 传递参数至内容组件
       widgetProps: {
-        type: Object,
+        type: [Object, Function],
+        default: null
+      },
+      widgetAttrs: {
+        type: [Object, Function],
+        default: null
+      },
+      widgetEvents: {
+        type: [Object, Function],
         default: null
       },
       // 使用组件渲染
@@ -38,10 +53,23 @@ export default defineComponent({
         type: [String, Function, Object],
         default: null
       },
+       // 按钮功能，优先级最高
+      buttons: {
+        type: [Array, Function],
+        default: null
+      },
       // 取消按钮配置
+      enabledCannelButton: {
+        type: Boolean,
+        default: true
+      },
       cannelButton: {
         type: Object,
         default: null
+      },
+      enabledSubmitButton: {
+        type: Boolean,
+        default: true
       },
       // 提交按钮配置
       submitButton: {
@@ -71,26 +99,121 @@ export default defineComponent({
           'close-on-press-escape': true,
           'show-close': true
         },
+        defaultDialogAttrs: {},
+        defaultDialogEvents: {
+          onClose:() => {
+            this.dialogStore.visible = false
+          }
+        },
         defaultCannelButtonRender: null,
         defaultSubmitButtonRender: null
       }
     },
     setup(props, context) {
-      const { destoryed } = props
+      const { destoryed, modelValue = false } = props
+      const vm = getCurrentInstance();
       const dialogContent = ref(null)
+
       const dialogStore = reactive({
-        visible: true,
-        loading: false,
-        dialogContent: null,
-        $emit: function(name, data) {
-          context.emit(name, data)  
-        }
+        vm: vm.ctx,
+        visible: modelValue,
+        submit: false,
+        cancel: false,
+        dialogContent: null
       })
-      
-      const dialogProps = {}
-      
-      let dialogButtons = []
-      
+
+      const getDialogProps = computed(() => {
+        const dialogStore = vm.ctx.dialogStore
+        const defaultDialogProps = isFunction(vm.ctx.defaultDialogProps) ? vm.ctx.defaultDialogProps(dialogStore) : vm.ctx.defaultDialogProps
+        const widgetDialogProps = vm.ctx.widgetDialogProps || {}
+        const dialogProps = merge({
+          visible: dialogStore.visible
+        }, defaultDialogProps)
+        return merge(dialogProps, isFunction(widgetDialogProps) ? widgetDialogProps(dialogStore, dialogProps) : widgetDialogProps)
+      })
+
+      const getDialogAttrs = computed(() => {
+        const dialogStore = vm.ctx.dialogStore
+        const defaultDialogAttrs = isFunction(vm.ctx.defaultDialogAttrs) ? vm.ctx.defaultDialogAttrs(dialogStore) : vm.ctx.defaultDialogAttrs
+        const widgetDialogAttrs = vm.ctx.widgetDialogAttrs || {}
+        return isFunction(widgetDialogAttrs) ? widgetDialogAttrs(dialogStore) : widgetDialogAttrs
+      })
+
+      const getDialogEvents = computed(() => {
+        const dialogStore = vm.ctx.dialogStore
+        const defaultDialogEvents = isFunction(vm.ctx.defaultDialogEvents) ? vm.ctx.defaultDialogEvents(dialogStore) : vm.ctx.defaultDialogEvents
+        const dialogEvents = merge({}, defaultDialogEvents)
+        const widgetDialogEvents = vm.ctx.widgetDialogEvents || {}
+        return merge(dialogEvents, isFunction(widgetDialogEvents) ? widgetDialogEvents(dialogStore, dialogEvents) : widgetDialogEvents)
+      })
+
+      const getDialogButtons = computed(() => {
+        const dialogStore = vm.ctx.dialogStore
+        const widgetComponents = vm.ctx.widgetComponents
+        const buttons = vm.ctx.buttons
+        const dialogButtons = []
+        if (isArray(buttons)) {
+          buttons.forEach(item => {
+            if (isFunction(item)) {
+              dialogButtons.push(item)
+            } else if (Reflect.has(item, 'render') && item.render) {
+              dialogButtons.push(item)
+            } else {
+              console.warn(`请传入正确的 buttons 参数!，buttons 配置请查看文档！`)
+            }
+          })
+        } else {
+          const { cannelButton, submitButton } = vm.ctx.$props
+          const enabledCannelButton = vm.ctx.enabledCannelButton
+          const enabledSubmitButton = vm.ctx.enabledSubmitButton
+          if (enabledCannelButton) {
+            const defaultCannelButtonRender = vm.ctx.defaultCannelButtonRender
+            const cannelButtonRenderConfig = merge({
+              action: 'cannel',
+              type: 'default',
+              text: '取消',
+              size: 'mini',
+              props: {},
+              events: {
+                click: () => {
+                  dialogStore.visible = false
+                  dialogStore.loading = false
+                  vm.ctx.$emit('cannel', dialogStore)
+                }
+              },
+              render: widgetComponents.cannelButtonRender
+            }, defaultCannelButtonRender)
+            if (cannelButton) {
+              dialogButtons.push(merge(cannelButtonRenderConfig, cannelButton))
+            } else {
+              dialogButtons.push(cannelButtonRenderConfig)
+            }
+          }
+          if (enabledSubmitButton) {
+            const defaultSubmitButtonRender = vm.ctx.defaultSubmitButtonRender
+            const submitButtonRenderConfig = merge({
+              action: 'submit',
+              type: 'primary',
+              text: '提交',
+              size: 'mini',
+              props: {},
+              events: {
+                click: () => {
+                  vm.ctx.$emit('submit', dialogStore)
+                }
+              },
+              render: widgetComponents.submitButtonRender
+            }, defaultSubmitButtonRender)
+            if (submitButton) {
+              dialogButtons.push(merge(submitButtonRenderConfig, submitButton))
+            } else {
+              dialogButtons.push(submitButtonRenderConfig)
+            }
+          }
+        }
+        return dialogButtons
+      })
+
       watch(() => props.modelValue, (nVal) => {
         dialogStore.visible = nVal
       }, {
@@ -100,7 +223,7 @@ export default defineComponent({
       watch(() => dialogStore.visible, (nVal) => {
         context.emit('update:modelValue', nVal)  
       })
-      
+
       onMounted(() => {
         // 获取弹窗渲染组件
         if (dialogContent) {
@@ -111,142 +234,79 @@ export default defineComponent({
       onUnmounted(() => {
         destoryed && destoryed()
       })
-
-      return {
-        dialogProps,
-        dialogButtons,
-        dialogStore,
-        dialogContent
-      }
-    },
-    created() {
-      const dialogStore = this.dialogStore
-      const widgetComponents = this.widgetComponents
-      const cannelButtonRender = {
-        action: 'cannel',
-        type: 'default',
-        text: '取消',
-        size: 'mini',
-        componentProps: null,
-        component: widgetComponents.cannelButtonRender,
-        render: null,
-        click: () => {
-          // dialogStore.visible = false
-          // dialogStore.loading = false
-          this.$emit('cannel')
-        }
-      }
-      const submitButtonRender = {
-        action: 'submit',
-        type: 'primary',
-        text: '提交',
-        size: 'mini',
-        componentProps: null,
-        component: widgetComponents.submitButtonRender,
-        render: null,
-        click: () => {
-          this.$emit('submit', dialogStore)
-        }
-      }
-      const defaultDialogButtonsConfig = {
-         'cannel': Object.assign({}, cannelButtonRender, this.defaultCannelButtonRender),
-         'submit': Object.assign({}, submitButtonRender, this.defaultSubmitButtonRender)
-      }
-      const props = this.$props
-      const { cannelButton, submitButton, widgetDialogProps } = props
       
-      if (typeof cannelButton === 'object') {
-         defaultDialogButtonsConfig.cannel = Object.assign(defaultDialogButtonsConfig.cannel, cannelButton)
-      }
-      
-      if (typeof submitButton === 'object') {
-         defaultDialogButtonsConfig.submit = Object.assign(defaultDialogButtonsConfig.submit, submitButton)
-      }
-
-      let dialogButtons = [
-         defaultDialogButtonsConfig.cannel,
-         defaultDialogButtonsConfig.submit
-      ]
-      
-      if (Array.isArray(props.buttons)) {
-        const buttons = []
-        props.buttons.forEach(item => {
-          if (typeof item === 'function') {
-            buttons.push(item)
-          } else if (Reflect.has(item, 'component') || Reflect.has(item, 'render')) {
-            buttons.push(item)
-          } else {
-            console.warn(`请传入正确的 buttons 参数!`)
-          }
-        })
-        if (buttons.length !== 0) {
-          dialogButtons = buttons
-        }
-      }
-      const defaultDialogProps = this.defaultDialogProps
-      const dialogProps = Object.assign({}, defaultDialogProps)
-      if (widgetDialogProps) {
-        for (let key in widgetDialogProps) {
-          dialogProps[key] = widgetDialogProps[key]
-        }
-      }
-      this.dialogProps = dialogProps
-      this.dialogButtons = dialogButtons
-    },
-    methods: {
-      renderDialogBody() {
-         const widgetProps = this.widgetProps
-         const widgetRender = this.widgetRender
-         const type = typeof widgetRender
+      const renderDialogBody = () => {
+         const widgetProps = vm.ctx.widgetProps
+         const widgetRender = vm.ctx.widgetRender
+         const nodeType = typeof widgetRender
          const widgetRenderMap = {
-            'string': (url) => <iframe ref="dialogContent" url={url} width="100%" height="100%" frameborder="0" scrolling="auto"></iframe>,
+            'string': (url) => {
+              return <iframe ref="dialogContent" url={url} width="100%" height="100%" frameborder="0" scrolling="auto"></iframe>
+            },
             'object': (component) => {
-               return <component is={component} {...widgetProps} ref="dialogContent"></component>
+               if (isVNode(component)) return component
+               return <component is={component} ref="dialogContent"></component>
             },
             'function': (render) => {
                if (!render) return
                const widgetComponent = render(widgetProps)
-               return <component is={widgetComponent} {...widgetProps} ref="dialogContent"></component>
+               return <component is={widgetComponent} ref="dialogContent"></component>
             }
          }
-         if (widgetRenderMap[type]) {
-            return widgetRenderMap[type](widgetRender)
+         if (widgetRenderMap[nodeType]) {
+            return widgetRenderMap[nodeType](widgetRender)
          }
          return null
-      },
-      renderButtons() {
-        const dialogStore = this.dialogStore
-        const dialogButtons = this.dialogButtons
+      }
+
+      const renderButtons = () => {
+        const buttons = vm.ctx.buttons
+        console.log(buttons, 'buttons')
+        if (isFunction(buttons)) {
+          return buttons(dialogStore)
+        }
         return <div>
           { 
-            dialogButtons.map(item => {
-              let { text, type, size, action, componentProps } = item
-              if (typeof item === 'function') {
+            getDialogButtons.value.map(item => {
+              let { text, type, size, action, props, events } = item
+              if (isFunction(item)) {
                 return item(dialogStore)
               }
-              if (typeof item.render === 'function') {
+              if (isFunction(item.render)) {
                 return item.render(dialogStore, item)
               }
-              if (Reflect.has(item, 'action') && action === 'submit') {
-                if (item.install) {
-                  return <component is={item.component} {...componentProps} loading={dialogStore.loading} type={type} size={size} onClick={() => item.click(dialogStore)}>{text}</component>
-                }
-                return <item.component {...componentProps} loading={dialogStore.loading} type={type} size={size} onClick={() => item.click(dialogStore)}>{text}</item.component>
-              }
-              if (item.install) {
-                return <component is={item.component} {...componentProps} type={type} size={size} onClick={() => item.click(dialogStore)}>{text}</component>
-              }
-              return <item.component {...componentProps} type={type} size={size} onClick={() => item.click(dialogStore)}>{text}</item.component>
+              const buttonItemProps = isFunction(props) ? props(dialogStore) : isObject(props) ? props : {}
+              const buttonItemEvents = isFunction(events) ? events(dialogStore) : isObject(events) ? events : {}
+              return <item.render 
+                type={type}
+                size={size}
+                {...{
+                  props: buttonItemProps,
+                  ...buttonItemEvents
+                }}
+              >{text}</item.render>
             })
           }
         </div>
       }
+      return {
+        dialogStore,
+        getDialogProps,
+        getDialogAttrs,
+        getDialogEvents,
+        getDialogButtons,
+        renderDialogBody,
+        renderButtons
+      }
     },
     render() {
+      const dialogStore = this.dialogStore
       const widgetComponents = this.widgetComponents
       const widgetDialogRender = this.widgetDialogRender || widgetComponents.widgetDialogRender || null
       if (!widgetDialogRender) return null
-      const dialogStore = this.dialogStore
+      const dialogProps = this.getDialogProps
+      const dialogAttrs = this.getDialogAttrs
+      const dialogEvents = this.getDialogEvents
       const slots = this.$slots
       const dialogSlots = {
         title: () => <div>{this.title}</div>,
@@ -265,14 +325,23 @@ export default defineComponent({
       if (Reflect.has(slots, 'default')) {
         dialogSlots.default = slots.default
       }
-      if (typeof widgetDialogRender === 'function') {
-        return widgetDialogRender(this.dialogProps, dialogSlots, dialogStore, this)
+      if (isFunction(widgetDialogRender)) {
+        return widgetDialogRender(dialogProps, dialogAttrs, dialogEvents, dialogSlots, this)
       }
       return <widgetDialogRender
-        {...this.dialogProps}
         v-model={dialogStore.visible}
+        {...{
+          attrs: {
+            ...dialogProps,
+            ...dialogAttrs
+          },
+          props: dialogProps,
+          ...dialogEvents
+        }}
         v-slots={dialogSlots}
       >
+        <template slot="title">title</template>
+        <template slot="footer">footer</template>
       </widgetDialogRender>
     }
 })

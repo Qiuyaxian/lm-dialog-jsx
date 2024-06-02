@@ -29,7 +29,12 @@ export const createDialogPlugin = function (dialogComponent) {
         const containerId = `dialog-${++createDialogId}`
         container.id = containerId
         let $vm = null
-        const destoryed = () => {
+        const closeAll = () => {
+          dialogPluginInstanceMap.forEach((vmItem) => {
+            vmItem.dialogStore.visible = false
+          })
+        }
+        const widgetDialogDestoryed = () => {
             // 移除dom对象
             let containerBox = document.getElementById(containerId)
             if (containerBox) {
@@ -48,8 +53,10 @@ export const createDialogPlugin = function (dialogComponent) {
         document.body.appendChild(container)
         $vm && ($vm.dialogStore.visible = true)
         return {
+            closeAll: closeAll,
             containerId: containerId,
-            destoryed: destoryed,
+            dialogStore: $vm.dialogStore,
+            destoryed: widgetDialogDestoryed,
             close: close
         } 
     }

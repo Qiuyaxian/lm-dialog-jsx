@@ -1,17 +1,17 @@
-import { ElDialog, ElButton } from 'element-plus'
+import { Dialog, Button } from 'element-ui'
 import { createDialogComponent, createDialogPlugin } from '../core/index'
 
 export const ElWidgetDialog = createDialogComponent({
   widgetComponents: {
-    widgetDialogRender: ElDialog,
-    cannelButtonRender: ElButton,
-    submitButtonRender: ElButton
+    widgetDialogRender: Dialog,
+    cannelButtonRender: Button,
+    submitButtonRender: Button
   },
   defaultCannelButtonRender: {
     text: '关闭',
     events: (dialogStore) => {
       return {
-        onClick: function() {
+        click: function() {
           dialogStore.visible = false
           dialogStore.loading = false
           dialogStore.vm.$emit('cannel')
@@ -23,7 +23,7 @@ export const ElWidgetDialog = createDialogComponent({
     text: '确定',
     events: (dialogStore) => {
       return {
-        onClick: function() {
+        click: function() {
           dialogStore.vm.$emit('submit', dialogStore)
         }
       }
@@ -31,52 +31,53 @@ export const ElWidgetDialog = createDialogComponent({
   }
 })
 
-const createDialogModelPlugin = createDialogPlugin(ElWidgetDialog) 
+const createElDialogModelPlugin = createDialogPlugin(ElWidgetDialog) 
 
-export const createDialogModel = function(options) {
+export const createElDialogModel = function(options) {
   let dialogInstance = null
   const dialogOptions = {
     ...options,
-    widgetDialogProps: {
-      ...options.widgetDialogProps
+    widgetDialogProps: (dialogStore) => {
+      const { widgetDialogProps } = options
+      return {
+        ...widgetDialogProps,
+        visible: dialogStore.visible
+      }
     },
     widgetDialogEvents: (dialogStore) => {
       const { widgetDialogEvents } = options
       return {
-        onOpen() {
+        open() {
           if (widgetDialogEvents && widgetDialogEvents.open) {
             widgetDialogEvents.open()
           }
         },
-        onOpened() {
+        opened() {
           if (widgetDialogEvents && widgetDialogEvents.opened) {
             widgetDialogEvents.opened()
           }
         },
-        onClose() {
-          console.log('defaultDialogEvents')
+        close() {
           dialogStore.visible = false
           if (widgetDialogEvents && widgetDialogEvents.close) {
             widgetDialogEvents.close()
           }
         },
-        onClosed() {
-          if (widgetDialogEvents && widgetDialogEvents.closed) widgetDialogEvents.closed()
+        closed() {
+          if (widgetDialogEvents && widgetDialogEvents.onClosed) widgetDialogEvents.onClosed()
           dialogInstance && dialogInstance.destoryed()
         }
       }
     }
   }
-  dialogInstance = createDialogModelPlugin(dialogOptions)
+  dialogInstance = createElDialogModelPlugin(dialogOptions)
   return dialogInstance
 }
 
-const DialogPlugin = {}
-
-DialogPlugin.install = function(app) {
-   app.config.globalProperties.$dialogPlugin = function(options) {
-      return createDialogModel(options)
-   }
+export default {
+  install: function(Vue, installOptions) {
+    Vue.prototype.$elDialogPlugin = function (options) {
+      return createElDialogModel(options, installOptions)
+    }
+  }
 }
-
-export default DialogPlugin

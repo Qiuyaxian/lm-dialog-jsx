@@ -5,32 +5,30 @@
       <button @click="openDialogPlugin">插件使用</button>
       <button @click="openDialog">函数使用</button>
       <button @click="openVisible">组件使用</button>
-      <button @click="openRender">函数式</button>
       <p>ant-design-vue</p>
       <button @click="openAntDialog">ant函数使用</button>
     </div>
     <el-widget-dialog v-model="visible" @submit="submitHandle">
-       <Demo msg="Demo.vue"></Demo>
+       <Content msg="Demo.vue"></Content>
     </el-widget-dialog> 
   </div>
 </template>
 
-<script lang="jsx">
-import { reactive, ref, provide } from "vue"
-import { ElButton } from 'element-plus'
-import { createDialogModel, ElWidgetDialog } from '@/dialog/src/element-plus'
+<script>
+import { Button } from 'element-ui'
+import { createElDialogModel, ElWidgetDialog } from '@/dialog/src/element-ul'
 
 import { AntWidgetDialog, createAntDialogModel } from '@/dialog/src/ant-design'
-import Demo from './Demo.vue'
+import Content from './Content.vue'
 
 export default {
-  name: 'HelloWorld',
+  name: 'Demo',
   props: {
     msg: String
   },
   components: {
     ElWidgetDialog,
-    Demo
+    Content
   },
   data() {
     return {
@@ -39,35 +37,22 @@ export default {
     }
   },
   setup() {
-    provide('info',"值")
     return {}
   },
   methods: {
     openAntDialog() {
-      const rules = reactive([])
-      const compRule = <Demo msg={'Demo.vue'}></Demo>
+      const compRule = <Content></Content>
       const dialog = new createAntDialogModel({
+        title: 'ant UI',
         widgetRender: compRule
       })
       console.log(dialog, 'dialog')
     },
-    openRender() {
-      const rules = reactive([])
-      const compRule = <Demo rules={rules}></Demo>
-      const dialogPlugin = vueRenderWidgetDialog({
-          modelValue: true,
-          dialogProps: {
-            'close-on-click-modal': false,
-          },
-          widgetRender: compRule
-      })
-      console.log(dialogPlugin, 'dialogPlugin')
-    },
     // 插件使用
     openDialogPlugin() {
-      const rules = reactive([])
-      const compRule = <Demo msg={'Demo.vue'}></Demo>
-      const dialogPlugin = this.$.appContext.config.globalProperties.$dialogPlugin({
+      const compRule = <Content></Content>
+      console.log(compRule, 'compRule')
+      const dialogPlugin = this.$elDialogPlugin({
           dialogProps: {
             'close-on-click-modal': false,
           },
@@ -75,13 +60,15 @@ export default {
             {
               text: '自定义',
               size: 'mini',
-              componentProps: null,
-              component: ElButton,
-              render: null,
-              click: (dialogStore) => {
-                dialogStore.visible = false
-                dialogStore.loading = false
-                // this.$emit('cannel')
+              render: Button,
+              events: (dialogStore) => {
+                return {
+                  click: () => {
+                    dialogStore.visible = false
+                    dialogStore.loading = false
+                    // this.$emit('cannel')
+                  }
+                }
               }
             }
           ],
@@ -90,9 +77,8 @@ export default {
     },
     // 函数使用
     openDialog() {
-      const rules = reactive([])
-      const compRule = <Demo msg={'Demo.vue'}></Demo>
-      const dialog = new createDialogModel({
+      const compRule = <Content></Content>
+      const dialog = new createElDialogModel({
         widgetRender: compRule
       })
       console.log(dialog, 'dialog')
