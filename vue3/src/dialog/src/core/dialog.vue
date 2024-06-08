@@ -1,9 +1,10 @@
 <script lang="jsx">
-import { defineComponent, getCurrentInstance, ref, reactive, computed, watch, onMounted, onUnmounted, isVNode } from "vue"
+import { defineComponent, getCurrentInstance, ref, reactive, computed, watch, onMounted, onUnmounted, isVNode, markRaw } from "vue"
 import merge from 'lodash/merge'
 import isFunction from 'lodash/isFunction'
 import isObject from 'lodash/isObject'
 import isArray from 'lodash/isArray'
+import useDialogStore from './useStore.js'
 export default defineComponent({
     name: "widget-dialog",
     props: {
@@ -114,13 +115,7 @@ export default defineComponent({
       const vm = getCurrentInstance();
       const dialogContent = ref(null)
 
-      const dialogStore = reactive({
-        vm: vm.ctx,
-        visible: modelValue,
-        submit: false,
-        cancel: false,
-        dialogContent: null
-      })
+      const dialogStore = useDialogStore(vm)
 
       const getDialogProps = computed(() => {
         const dialogStore = vm.ctx.dialogStore
@@ -261,7 +256,6 @@ export default defineComponent({
 
       const renderButtons = () => {
         const buttons = vm.ctx.buttons
-        console.log(buttons, 'buttons')
         if (isFunction(buttons)) {
           return buttons(dialogStore)
         }
@@ -279,9 +273,8 @@ export default defineComponent({
               const buttonItemEvents = isFunction(events) ? events(dialogStore) : isObject(events) ? events : {}
               return <item.render 
                 type={type}
-                size={size}
                 {...{
-                  props: buttonItemProps,
+                  ...buttonItemProps,
                   ...buttonItemEvents
                 }}
               >{text}</item.render>
@@ -331,11 +324,8 @@ export default defineComponent({
       return <widgetDialogRender
         v-model={dialogStore.visible}
         {...{
-          attrs: {
-            ...dialogProps,
-            ...dialogAttrs
-          },
-          props: dialogProps,
+          ...dialogProps,
+          ...dialogAttrs,
           ...dialogEvents
         }}
         v-slots={dialogSlots}

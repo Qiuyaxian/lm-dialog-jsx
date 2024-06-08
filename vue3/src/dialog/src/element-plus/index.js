@@ -31,7 +31,7 @@ export const ElWidgetDialog = createDialogComponent({
   }
 })
 
-const createDialogModelPlugin = createDialogPlugin(ElWidgetDialog) 
+const createDialogModelPlugin = createDialogPlugin(ElWidgetDialog)
 
 export const createDialogModel = function(options) {
   let dialogInstance = null
@@ -54,7 +54,6 @@ export const createDialogModel = function(options) {
           }
         },
         onClose() {
-          console.log('defaultDialogEvents')
           dialogStore.visible = false
           if (widgetDialogEvents && widgetDialogEvents.close) {
             widgetDialogEvents.close()
@@ -71,12 +70,10 @@ export const createDialogModel = function(options) {
   return dialogInstance
 }
 
-const DialogPlugin = {}
-
-DialogPlugin.install = function(app) {
-   app.config.globalProperties.$dialogPlugin = function(options) {
-      return createDialogModel(options)
-   }
+export default {
+  install: function(app) {
+     app.config.globalProperties.$dialogPlugin = function(options) {
+        return createDialogModel(options)
+     }
+  }
 }
-
-export default DialogPlugin

@@ -63,12 +63,11 @@ export const createAntDialogModel = function(options) {
   return dialogInstance
 }
 
-const AntDialogPlugin = {}
 
-AntDialogPlugin.install = function(app) {
-   app.config.globalProperties.$dialogPlugin = function(options) {
-      return createAntDialogModel(options)
-   }
+export default {
+  install: function(app) {
+     app.config.globalProperties.$dialogPlugin = function(options) {
+        return createAntDialogModel(options)
+     }
+  }
 }
-
-export default AntDialogPlugin

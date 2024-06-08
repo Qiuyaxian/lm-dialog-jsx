@@ -1,14 +1,20 @@
-import { defineComponent, createApp } from 'vue'
+import { defineComponent, createApp, markRaw } from 'vue'
 
 import Dialog from './dialog.vue'
 // 创建弹窗组件
 export const createDialogComponent = function(widgetDialogConfig) {
+    const newWidgetDialogConfig = {
+        ...widgetDialogConfig
+    }
+    if (Reflect.has(newWidgetDialogConfig, 'widgetComponents')) {
+       newWidgetDialogConfig.widgetComponents = markRaw(newWidgetDialogConfig.widgetComponents)
+    }
     return defineComponent({
         ...Dialog,
         data() {
             // 可配置数据
             return {
-                ...widgetDialogConfig
+              ...newWidgetDialogConfig
             }
         }
     })
@@ -17,7 +23,7 @@ export const createDialogComponent = function(widgetDialogConfig) {
 let createDialogId = 0
 // 创建可挂载弹窗
 export const createDialogPlugin = function (dialogComponent) {
-    const DialogPluginMap =  new Map()
+    const dialogPluginMap = new Map()
     // 创建实例
     const createDialogInstance = function (container, options) {
         if (!container) return
@@ -42,14 +48,14 @@ export const createDialogPlugin = function (dialogComponent) {
                 containerBox = null
             }
             // 释放内存
-            DialogPluginMap.delete(containerId)
+            dialogPluginMap.delete(containerId)
             $vm = null
         }
         const close = () => {
             $vm && ($vm.dialogStore.visible = false)
         }
         $vm = new createDialogInstance(container, options)
-        DialogPluginMap.set(containerId, $vm)
+        dialogPluginMap.set(containerId, $vm)
         document.body.appendChild(container)
         $vm && ($vm.dialogStore.visible = true)
         return {

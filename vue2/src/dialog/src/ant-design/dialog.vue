@@ -15,9 +15,6 @@ export default {
   name: "ant-modal-dialog",
   components: {
     Modal
-  },
-  created() {
-    console.log(this.$slots, this.$props, '$slots')
   }
 }
 </script>

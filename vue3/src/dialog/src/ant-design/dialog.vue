@@ -1,5 +1,5 @@
 <template>
-  <Modal v-bind="$attrs" v-on="$listeners" v-model:visible="dialogStore.visible">
+  <Modal v-bind="$attrs" v-model:visible="dialogStore.visible">
     <template v-for="(item, key, index) in $slots" :key="index" v-slot:[key]>
       <slot :name="key"></slot>
     </template>
